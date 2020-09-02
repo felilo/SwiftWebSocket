@@ -602,10 +602,6 @@ private class InnerWebSocket: Hashable {
 
     var hashValue: Int { return id }
 
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
     init(request: URLRequest, subProtocols : [String] = [], stub : Bool = false){
         pthread_mutex_init(&mutex, nil)
         self.id = manager.nextId()
@@ -971,8 +967,8 @@ private class InnerWebSocket: Hashable {
     }
 
     func closeConn() {
-        rd.remove(from: RunLoop.main, forMode: RunLoop.Mode.default)
-        wr.remove(from: RunLoop.main, forMode: RunLoop.Mode.default)
+      rd.remove(from: RunLoop.main, forMode: .default)
+      wr.remove(from: RunLoop.main, forMode: .default)
         rd.delegate = nil
         wr.delegate = nil
         rd.close()
@@ -1028,7 +1024,7 @@ private class InnerWebSocket: Hashable {
 			security = .none
 		}
 
-		var path = CFURLCopyPath(req.url! as CFURL) as String
+      var path = CFURLCopyPath(req.url! as CFURL?) as String
         if path == "" {
             path = "/"
         }
@@ -1062,7 +1058,7 @@ private class InnerWebSocket: Hashable {
         var (rdo, wro) : (InputStream?, OutputStream?)
         var readStream:  Unmanaged<CFReadStream>?
         var writeStream: Unmanaged<CFWriteStream>?
-        CFStreamCreatePairWithSocketToHost(nil, addr[0] as CFString, UInt32(Int(addr[1])!), &readStream, &writeStream);
+      CFStreamCreatePairWithSocketToHost(nil, addr[0] as CFString?, UInt32(Int(addr[1])!), &readStream, &writeStream);
         rdo = readStream!.takeRetainedValue()
         wro = writeStream!.takeRetainedValue()
         (rd, wr) = (rdo!, wro!)
@@ -1091,8 +1087,8 @@ private class InnerWebSocket: Hashable {
         }
         rd.delegate = delegate
         wr.delegate = delegate
-        rd.schedule(in: RunLoop.main, forMode: RunLoop.Mode.default)
-        wr.schedule(in: RunLoop.main, forMode: RunLoop.Mode.default)
+      rd.schedule(in: RunLoop.main, forMode: .default)
+      wr.schedule(in: RunLoop.main, forMode: .default)
         rd.open()
         wr.open()
         try write(header, length: header.count)
@@ -1148,8 +1144,8 @@ private class InnerWebSocket: Hashable {
                 } else {
                     key = ""
                     if let r = line.range(of: ":") {
-                        key = trim(String(line[..<r.lowerBound]))
-                        value = trim(String(line[r.upperBound...]))
+                        key = trim(line.substring(to: r.lowerBound))
+                        value = trim(line.substring(from: r.upperBound))
                     }
                 }
                 
@@ -1466,7 +1462,7 @@ private class InnerWebSocket: Hashable {
             }
         }
         let r = arc4random()
-        var maskBytes : [UInt8] = [UInt8(r >> 0 & 0xFF), UInt8(r >> 8 & 0xFF), UInt8(r >> 16 & 0xFF), UInt8(r >> 24 & 0xFF)]
+      let maskBytes : [UInt8] = [UInt8(r >> 0 & 0xFF), UInt8(r >> 8 & 0xFF), UInt8(r >> 16 & 0xFF), UInt8(r >> 24 & 0xFF)]
         for i in 0 ..< 4 {
             head[hlen] = maskBytes[i]
             hlen += 1
@@ -1650,18 +1646,11 @@ private class Manager {
 private let manager = Manager()
 
 /// WebSocket objects are bidirectional network streams that communicate over HTTP. RFC 6455.
-@objcMembers
 open class WebSocket: NSObject {
     fileprivate var ws: InnerWebSocket
     fileprivate var id = manager.nextId()
     fileprivate var opened: Bool
-
-    open override var hash: Int { return id }
-    open override func isEqual(_ other: Any?) -> Bool {
-        guard let other = other as? WebSocket else { return false }
-        return self.id == other.id
-    }
-    
+  open override var hash: Int { return id }
     /// Create a WebSocket connection to a URL; this should be the URL to which the WebSocket server will respond.
     public convenience init(_ url: String){
         self.init(request: URLRequest(url: URL(string: url)!), subProtocols: [])
@@ -1817,7 +1806,6 @@ public func ==(lhs: WebSocket, rhs: WebSocket) -> Bool {
 
 extension WebSocket {
     /// The events of the WebSocket using a delegate.
-    @objc
     public var delegate : WebSocketDelegate? {
         get { return ws.eventDelegate }
         set { ws.eventDelegate = newValue }
